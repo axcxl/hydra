@@ -7,6 +7,9 @@ import queue
 import multiprocessing
 import logging
 import argparse
+from db.files import Files, db_connect, create_deals_table
+from sqlalchemy.orm import sessionmaker
+
 
 class Hydra():
     def __init__(self, path):
@@ -16,16 +19,20 @@ class Hydra():
         self.init_logging(logging.INFO, 'hydra.log')
 
         # Init config stuff
-        self.no_workers = 2
+        self.no_workers = 3
         self.hash_func = hashlib.sha3_256
         self.hash_bsize = 2 * 1024 * 1024 # 2Mb?
         self.pqueue_timeout = 10 #second(s)
         self.pqueue_maxsize = 2048 #files
         self.print_timeout = 1 #second(s)
 
+        # Init db stuff
+        self.db_engine = 'sqlite:///files.db'
+
         # Init statistics that come from worker processes
         self.no_files_indexed = multiprocessing.Value(ctypes.c_int, lock=False)
         self.no_files_processed = multiprocessing.Array(ctypes.c_int, self.no_workers, lock=False)
+        self.no_files_logged = multiprocessing.Value(ctypes.c_int, lock=False)
 
         # Init queues
         self.queue_files = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
@@ -39,10 +46,15 @@ class Hydra():
             self.procs[str(i)] = multiprocessing.Process(target=self.worker, args=(i,))
             self.procs[str(i)].start()
 
+        self.procs = {'librarian': multiprocessing.Process(target=self.librarian)}
+        self.procs['librarian'].start()
+
+        # Display statistics
         while True:
             print('Indexed:', self.no_files_indexed.value, ' - PROCESSED: ', end='')
             for i in range(0, self.no_workers):
                 print(self.no_files_processed[i], end='; ')
+            print('- Logged: ', self.no_files_logged.value, end='')
             print('', end=' ' * 80 + '\r')
 
             done = True
@@ -56,7 +68,7 @@ class Hydra():
                 print('\n\nALL DONE!')
                 break
 
-            time.sleep(0.1)
+            time.sleep(self.print_timeout)
 
     def init_logging(self, level, file):
         """
@@ -126,6 +138,7 @@ class Hydra():
 
                 self.no_files_processed[index-1] += 1
                 self.logger.debug("Computed HASH %s for file %s" % (file_hash.hexdigest(), target_file))
+                self.queue_data.put({"path": target_file, "hash": file_hash.hexdigest()})
             except FileNotFoundError:
                 self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
 
@@ -138,7 +151,23 @@ class Hydra():
         """
         self.logger.info('Librarian started!')
 
-        self.logger.info('Librarian finished!')
+        # create an engine
+        engine = db_connect(self.db_engine)
+        create_deals_table(engine)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        while True:
+            try:
+                data = self.queue_data.get(timeout=self.pqueue_timeout)
+            except queue.Empty:
+                break
+
+            self.no_files_logged.value += 1
+            session.add(Files(path=data['path'], hash=data['hash']))
+
+        session.commit() #TODO: autocommit based on timer
+        self.logger.info('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
 
 
 if __name__ == "__main__":
