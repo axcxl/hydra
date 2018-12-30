@@ -29,6 +29,7 @@ class Hydra():
 
         # Init queues
         self.queue_files = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
+        self.queue_data = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
 
         # Init processes
         self.procs = {'walker': multiprocessing.Process(target=self.walk)}
@@ -62,7 +63,7 @@ class Hydra():
         Moved the logging configuration here to keep the init clean.
         :param level:   logging level to configure
         :param file:    log file to use
-        :return:
+        :return: self.logger configured and ready for usage
         """
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
@@ -81,6 +82,10 @@ class Hydra():
         self.logger.info('Logging configured')
 
     def walk(self):
+        """
+        Look for files on in the given location. Keeps only regular files (an symlinks).
+        :return: Nothing. Puts the full path of the files in a queue for processing.
+        """
         self.logger.info('Walker init for ' + self.target_path)
 
         for root, dirs, files in os.walk(self.target_path):
@@ -98,6 +103,11 @@ class Hydra():
         self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files')
 
     def worker(self, index):
+        """
+        Works on files in the given queue. Puts results in another queue.
+        :param index: Used to identify individual workers.
+        :return: Nothing. Puts results in another queue.
+        """
         self.logger.info('Worker ' + str(index) + ' started with ' + str(self.hash_func))
 
         file_hash = self.hash_func()
@@ -120,6 +130,15 @@ class Hydra():
                 self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
 
         self.logger.info('Worker ' + str(index) + ' finished, processing ' + str(self.no_files_processed[index-1]) + ' files')
+
+    def librarian(self):
+        """
+        Logs results to a database. The results are taken from a queue.
+        :return:
+        """
+        self.logger.info('Librarian started!')
+
+        self.logger.info('Librarian finished!')
 
 
 if __name__ == "__main__":
