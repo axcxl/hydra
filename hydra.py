@@ -4,6 +4,7 @@ import ctypes
 import time
 import hashlib
 import queue
+import threading
 import multiprocessing
 import logging
 import argparse
@@ -28,6 +29,7 @@ class Hydra():
 
         # Init db stuff
         self.db_engine = 'sqlite:///files.db'
+        self.db_commit_timeout = 5 #seconds
 
         # Init statistics that come from worker processes
         self.no_files_indexed = multiprocessing.Value(ctypes.c_int, lock=False)
@@ -42,12 +44,16 @@ class Hydra():
         self.procs = {'walker': multiprocessing.Process(target=self.walk)}
         self.procs['walker'].start()
 
-        for i in range(1,1 + self.no_workers):
+        for i in range(0, self.no_workers):
             self.procs[str(i)] = multiprocessing.Process(target=self.worker, args=(i,))
             self.procs[str(i)].start()
 
-        self.procs = {'librarian': multiprocessing.Process(target=self.librarian)}
+        self.procs['librarian'] = multiprocessing.Process(target=self.librarian)
         self.procs['librarian'].start()
+
+        # Init threads
+        self.timer_db = threading.Timer(self.db_commit_timeout, self.timer_librarian_commit)
+        self.timer_db.start()
 
         # Display statistics
         while True:
@@ -58,14 +64,22 @@ class Hydra():
             print('', end=' ' * 80 + '\r')
 
             done = True
-            for elem in self.procs:
-                if self.procs[elem].is_alive() is True:
+            for i in range(0, self.no_workers):
+                if self.procs[str(i)].is_alive() is True:
                     done = False
                 else:
-                    self.procs[elem].join()
+                    self.procs[str(i)].join()
+                    self.logger.info('Joined with worker ' + str(i))
 
             if done is True:
+                self.logger.info("Clean-up started!")
+                self.timer_db.cancel()
+                self.queue_data.close()
+                self.queue_files.close()
+                self.procs['walker'].join()
+                self.procs['librarian'].join()
                 print('\n\nALL DONE!')
+                self.logger.info('ALL DONE!')
                 break
 
             time.sleep(self.print_timeout)
@@ -136,13 +150,13 @@ class Hydra():
                     for block in iter(lambda: f.read(self.hash_bsize), b""):
                         file_hash.update(block)
 
-                self.no_files_processed[index-1] += 1
+                self.no_files_processed[index] += 1
                 self.logger.debug("Computed HASH %s for file %s" % (file_hash.hexdigest(), target_file))
                 self.queue_data.put({"path": target_file, "hash": file_hash.hexdigest()})
             except FileNotFoundError:
                 self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
 
-        self.logger.info('Worker ' + str(index) + ' finished, processing ' + str(self.no_files_processed[index-1]) + ' files')
+        self.logger.info('Worker ' + str(index) + ' finished, processing ' + str(self.no_files_processed[index]) + ' files')
 
     def librarian(self):
         """
@@ -151,7 +165,8 @@ class Hydra():
         """
         self.logger.info('Librarian started!')
 
-        # create an engine
+        # Connect to the database
+        # TODO: improve this, does not look that good
         engine = db_connect(self.db_engine)
         create_deals_table(engine)
         Session = sessionmaker(bind=engine)
@@ -163,11 +178,27 @@ class Hydra():
             except queue.Empty:
                 break
 
-            self.no_files_logged.value += 1
-            session.add(Files(path=data['path'], hash=data['hash']))
+            if data == 'COMMIT':
+                session.commit()
+                self.logger.info('COMMIT')
+            else:
+                self.no_files_logged.value += 1
+                session.add(Files(path=data['path'], hash=data['hash']))
 
-        session.commit() #TODO: autocommit based on timer
+        self.logger.info('FINAL COMMIT!')
+        session.commit()
         self.logger.info('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
+
+    def timer_librarian_commit(self):
+        """
+        Used to trigger periodic commits. The timer recreates itself until it is canceled at the end.
+        :return:
+        """
+        self.queue_data.put('COMMIT')
+
+        # Restart timer
+        self.timer_db = threading.Timer(self.db_commit_timeout, self.timer_librarian_commit)
+        self.timer_db.start()
 
 
 if __name__ == "__main__":
