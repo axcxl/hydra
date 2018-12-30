@@ -20,9 +20,9 @@ class Hydra():
         self.init_logging(logging.INFO, 'hydra.log')
 
         # Init config stuff
-        self.no_workers = 3
-        self.hash_func = hashlib.sha3_256
-        self.hash_bsize = 2 * 1024 * 1024 # 2Mb?
+        self.no_workers = 4
+        self.hash_func = hashlib.sha256
+        self.hash_bsize = 2 * 1024 * 1024 # 8Mb?
         self.pqueue_timeout = 10 #second(s)
         self.pqueue_maxsize = 2048 #files
         self.print_timeout = 1 #second(s)
@@ -151,8 +151,13 @@ class Hydra():
                         file_hash.update(block)
 
                 self.no_files_processed[index] += 1
-                self.logger.debug("Computed HASH %s for file %s" % (file_hash.hexdigest(), target_file))
-                self.queue_data.put({"path": target_file, "hash": file_hash.hexdigest()})
+
+                data = {"path": target_file,
+                        "hash": file_hash.hexdigest(),
+                        "size": os.path.getsize(target_file),
+                        "date": os.path.getctime(target_file)
+                        }
+                self.queue_data.put(data)
             except FileNotFoundError:
                 self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
 
@@ -183,7 +188,10 @@ class Hydra():
                 self.logger.info('COMMIT')
             else:
                 self.no_files_logged.value += 1
-                session.add(Files(path=data['path'], hash=data['hash']))
+                session.add(Files(path=data['path'],
+                                  hash=data['hash'],
+                                  size=data['size'],
+                                  date=data['date']))
 
         self.logger.info('FINAL COMMIT!')
         session.commit()
