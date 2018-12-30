@@ -1,4 +1,5 @@
 import os
+import datetime
 import ctypes
 import time
 import hashlib
@@ -52,7 +53,7 @@ class Hydra():
 
             if done is True:
                 print('\n\nALL DONE!')
-                exit(0)
+                break
 
             time.sleep(0.1)
 
@@ -128,4 +129,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    start = datetime.datetime.now()
     h = Hydra(args.target)
+    stop = datetime.datetime.now()
+    print("This took ", stop - start)
