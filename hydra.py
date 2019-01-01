@@ -119,15 +119,20 @@ class Hydra():
             for file in files:
                 f = os.path.join(root, file)
 
-                self.logger.debug("FOUND " + f)
+                #self.logger.debug("FOUND " + f)
                 self.no_files_indexed.value += 1
                 self.queue_files.put(f)
 
         self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files')
 
+        # Signal that the list of files is done. Do it for each worker
+        for i in range(0, self.no_workers):
+            self.queue_files.put(None)
+
     def worker(self, index):
         """
         Works on files in the given queue. Puts results in another queue.
+        The worker terminates when seeing a None in the queue.
         :param index: Used to identify individual workers.
         :return: Nothing. Puts results in another queue.
         """
@@ -135,12 +140,9 @@ class Hydra():
 
         file_hash = self.hash_func()
         while True:
-            try:
-                target_file = self.queue_files.get(timeout=self.pqueue_timeout)
-            except queue.Empty:
+            target_file = self.queue_files.get(timeout=self.pqueue_timeout)
+            if target_file is None:
                 break
-
-            self.logger.debug("Processing file " + target_file)
 
             try:
                 fstat = os.stat(target_file)
@@ -165,12 +167,19 @@ class Hydra():
 
         self.logger.info('Worker ' + str(index) + ' finished, processing ' + str(self.no_files_processed[index]) + ' files')
 
+        # Signal to the librarian that this worker is done
+        self.queue_data.put(None)
+
     def librarian(self):
         """
         Logs results to a database. The results are taken from a queue.
+        The processes terminates after processing all the data and after seeing that all the workers are done. This is
+        done by couting the None values in the queue.
         :return:
         """
         self.logger.info('Librarian started!')
+
+        workers_done = 0
 
         # Connect to the database
         # TODO: improve this, does not look that good
@@ -180,10 +189,13 @@ class Hydra():
         session = Session()
 
         while True:
-            try:
-                data = self.queue_data.get(timeout=self.pqueue_timeout)
-            except queue.Empty:
-                break
+            data = self.queue_data.get(timeout=self.pqueue_timeout)
+            if data is None:
+                workers_done +=1
+                # All workers are done, no need to wait anymore
+                if workers_done == self.no_workers:
+                    break
+                continue
 
             if data == 'COMMIT':
                 session.commit()
