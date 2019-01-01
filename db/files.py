@@ -1,16 +1,15 @@
-from sqlalchemy import Column, Integer, String
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.engine.url import URL
 
 DeclarativeBase = declarative_base()
 
-def db_connect(dburl):
+
+def db_connect(db_url):
     """
     Performs database connection using database settings from settings.py.
     Returns sqlalchemy engine instance
     """
-    return create_engine(dburl)
+    return create_engine(db_url)
 
 
 def create_deals_table(engine):
@@ -22,7 +21,7 @@ class Files(DeclarativeBase):
     __tablename__ = 'files'
     id = Column(Integer, primary_key=True)
     path = Column(String(100))
-    hash = Column(String(180)) #TODO: check this if changing hash function
+    hash = Column(String(180))  # TODO: check this if changing hash function
     size = Column(Integer)
     date = Column(String(50))
 

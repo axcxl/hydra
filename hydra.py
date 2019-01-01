@@ -1,10 +1,8 @@
 import os
 import stat
 import datetime
-import ctypes
 import time
 import hashlib
-import queue
 import threading
 import multiprocessing
 import logging
@@ -13,7 +11,7 @@ from db.files import Files, db_connect, create_deals_table
 from sqlalchemy.orm import sessionmaker
 
 
-class Hydra():
+class Hydra:
     def __init__(self, path):
         self.target_path = path
 
@@ -23,19 +21,19 @@ class Hydra():
         # Init config stuff
         self.no_workers = 4
         self.hash_func = hashlib.sha256
-        self.hash_bsize = 2 * 1024 * 1024 # 8Mb?
-        self.pqueue_timeout = 10 #second(s)
-        self.pqueue_maxsize = 2048 #files
-        self.print_timeout = 1 #second(s)
+        self.hash_bsize = 2 * 1024 * 1024   # 8Mb?
+        self.pqueue_timeout = 10            # second(s)
+        self.pqueue_maxsize = 2048          # files
+        self.print_timeout = 1              # second(s)
 
         # Init db stuff
         self.db_engine = 'sqlite:///files.db'
-        self.db_commit_timeout = 5 #seconds
+        self.db_commit_timeout = 5  # seconds
 
         # Init statistics that come from worker processes
-        self.no_files_indexed = multiprocessing.Value(ctypes.c_int, lock=False)
-        self.no_files_processed = multiprocessing.Array(ctypes.c_int, self.no_workers, lock=False)
-        self.no_files_logged = multiprocessing.Value(ctypes.c_int, lock=False)
+        self.no_files_indexed = multiprocessing.Value('i', lock=False)
+        self.no_files_processed = multiprocessing.Array('i', self.no_workers, lock=False)
+        self.no_files_logged = multiprocessing.Value('i', lock=False)
 
         # Init queues
         self.queue_files = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
@@ -162,7 +160,7 @@ class Hydra():
 
             self.no_files_processed[index] += 1
             target_hash = file_hash.hexdigest()
-            self.logger.debug('Hashed ' + target_file + ' '  + target_hash)
+            self.logger.debug('Hashed ' + target_file + ' ' + target_hash)
 
             data = {"path": target_file,
                     "hash": target_hash,
@@ -171,7 +169,8 @@ class Hydra():
                     }
             self.queue_data.put(data)
 
-        self.logger.info('Worker ' + str(index) + ' finished, processing ' + str(self.no_files_processed[index]) + ' files')
+        self.logger.info('Worker ' + str(index) + ' finished, processing ' +
+                         str(self.no_files_processed[index]) + ' files')
 
         # Signal to the librarian that this worker is done
         self.queue_data.put(None)
@@ -197,7 +196,7 @@ class Hydra():
         while True:
             data = self.queue_data.get(timeout=self.pqueue_timeout)
             if data is None:
-                workers_done +=1
+                workers_done += 1
                 # All workers are done, no need to wait anymore
                 if workers_done == self.no_workers:
                     break
