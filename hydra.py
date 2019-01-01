@@ -119,7 +119,7 @@ class Hydra():
             for file in files:
                 f = os.path.join(root, file)
 
-                #self.logger.debug("FOUND " + f)
+                self.logger.debug("FOUND " + f)
                 self.no_files_indexed.value += 1
                 self.queue_files.put(f)
 
@@ -149,17 +149,23 @@ class Hydra():
                 if stat.S_ISREG(fstat.st_mode) is False:
                     continue
             except FileNotFoundError:
-                #self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
+                self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
                 continue
 
-            with open(target_file, "rb") as f:
-                for block in iter(lambda: f.read(self.hash_bsize), b""):
-                    file_hash.update(block)
+            try:
+                with open(target_file, "rb") as f:
+                    for block in iter(lambda: f.read(self.hash_bsize), b""):
+                        file_hash.update(block)
+            except PermissionError:
+                self.logger.warning('Permission denied for file ' + target_file)
+                continue
 
             self.no_files_processed[index] += 1
+            target_hash = file_hash.hexdigest()
+            self.logger.debug('Hashed ' + target_file + ' '  + target_hash)
 
             data = {"path": target_file,
-                    "hash": file_hash.hexdigest(),
+                    "hash": target_hash,
                     "size": fstat.st_size,
                     "date": fstat.st_ctime
                     }
