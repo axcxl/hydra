@@ -1,4 +1,5 @@
 import os
+import stat
 import datetime
 import ctypes
 import time
@@ -118,10 +119,6 @@ class Hydra():
             for file in files:
                 f = os.path.join(root, file)
 
-                # Keep only regular files and symlinks
-                if os.path.isfile(f) is not True:
-                    continue
-
                 self.logger.debug("FOUND " + f)
                 self.no_files_indexed.value += 1
                 self.queue_files.put(f)
@@ -146,22 +143,25 @@ class Hydra():
             self.logger.debug("Processing file " + target_file)
 
             try:
-                with open(target_file, "rb") as f:
-                    for block in iter(lambda: f.read(self.hash_bsize), b""):
-                        file_hash.update(block)
-
-                self.no_files_processed[index] += 1
-
                 fstat = os.stat(target_file)
-
-                data = {"path": target_file,
-                        "hash": file_hash.hexdigest(),
-                        "size": fstat.st_size,
-                        "date": fstat.st_ctime
-                        }
-                self.queue_data.put(data)
+                if stat.S_ISREG(fstat.st_mode) is False:
+                    continue
             except FileNotFoundError:
-                self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
+                #self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
+                continue
+
+            with open(target_file, "rb") as f:
+                for block in iter(lambda: f.read(self.hash_bsize), b""):
+                    file_hash.update(block)
+
+            self.no_files_processed[index] += 1
+
+            data = {"path": target_file,
+                    "hash": file_hash.hexdigest(),
+                    "size": fstat.st_size,
+                    "date": fstat.st_ctime
+                    }
+            self.queue_data.put(data)
 
         self.logger.info('Worker ' + str(index) + ' finished, processing ' + str(self.no_files_processed[index]) + ' files')
 
