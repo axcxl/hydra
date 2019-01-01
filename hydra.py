@@ -61,7 +61,7 @@ class Hydra():
             for i in range(0, self.no_workers):
                 print(self.no_files_processed[i], end='; ')
             print('- Logged: ', self.no_files_logged.value, end='')
-            print('', end=' ' * 80 + '\r')
+            print('', end='\r')
 
             done = True
             for i in range(0, self.no_workers):
@@ -152,10 +152,12 @@ class Hydra():
 
                 self.no_files_processed[index] += 1
 
+                fstat = os.stat(target_file)
+
                 data = {"path": target_file,
                         "hash": file_hash.hexdigest(),
-                        "size": os.path.getsize(target_file),
-                        "date": os.path.getctime(target_file)
+                        "size": fstat.st_size,
+                        "date": fstat.st_ctime
                         }
                 self.queue_data.put(data)
             except FileNotFoundError:
