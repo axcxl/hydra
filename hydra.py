@@ -7,7 +7,9 @@ import threading
 import multiprocessing
 import logging
 import argparse
-from db.files import Files, db_connect, create_deals_table
+from db import Base
+from db.files import Files
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
@@ -20,7 +22,7 @@ class Hydra:
 
         # Init config stuff
         self.no_workers = 4
-        self.hash_func = hashlib.sha256
+        self.hash_func = hashlib.sha512
         self.hash_bsize = 2 * 1024 * 1024   # 8Mb?
         self.pqueue_timeout = 10            # second(s)
         self.pqueue_maxsize = 2048          # files
@@ -29,6 +31,13 @@ class Hydra:
         # Init db stuff
         self.db_engine = 'sqlite:///files.db'
         self.db_commit_timeout = 5  # seconds
+
+        # Connect to the database
+        # TODO: improve this, does not look that good
+        engine = create_engine(self.db_engine)
+        Base.metadata.create_all(engine)
+        session_maker = sessionmaker(bind=engine)
+        self.session = session_maker()
 
         # Init statistics that come from worker processes
         self.no_files_indexed = multiprocessing.Value('i', lock=False)
@@ -191,13 +200,6 @@ class Hydra:
 
         workers_done = 0
 
-        # Connect to the database
-        # TODO: improve this, does not look that good
-        engine = db_connect(self.db_engine)
-        create_deals_table(engine)
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
         while True:
             data = self.queue_data.get(timeout=self.pqueue_timeout)
             if data is None:
@@ -208,17 +210,17 @@ class Hydra:
                 continue
 
             if data == 'COMMIT':
-                session.commit()
+                self.session.commit()
                 self.logger.info('COMMIT')
             else:
                 self.no_files_logged.value += 1
-                session.add(Files(path=data['path'],
+                self.session.add(Files(path=data['path'],
                                   hash=data['hash'],
                                   size=data['size'],
                                   date=data['date']))
 
         self.logger.info('FINAL COMMIT!')
-        session.commit()
+        self.session.commit()
         self.logger.info('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
 
     def timer_librarian_commit(self):

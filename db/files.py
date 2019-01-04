@@ -1,23 +1,8 @@
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
-
-DeclarativeBase = declarative_base()
+from sqlalchemy import Column, Integer, String
+from db import Base
 
 
-def db_connect(db_url):
-    """
-    Performs database connection using database settings from settings.py.
-    Returns sqlalchemy engine instance
-    """
-    return create_engine(db_url)
-
-
-def create_deals_table(engine):
-    """"""
-    DeclarativeBase.metadata.create_all(engine)
-
-
-class Files(DeclarativeBase):
+class Files(Base):
     __tablename__ = 'files'
     id = Column(Integer, primary_key=True)
     path = Column(String(100))
