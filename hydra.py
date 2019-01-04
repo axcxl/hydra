@@ -24,7 +24,6 @@ class Hydra:
         self.no_workers = 4
         self.hash_func = hashlib.sha512
         self.hash_bsize = 2 * 1024 * 1024   # 8Mb?
-        self.pqueue_timeout = 10            # second(s)
         self.pqueue_maxsize = 2048          # files
         self.print_timeout = 1              # second(s)
 
@@ -154,7 +153,7 @@ class Hydra:
 
         file_hash = self.hash_func()
         while True:
-            target_file = self.queue_files.get(timeout=self.pqueue_timeout)
+            target_file = self.queue_files.get()
             if target_file is None:
                 break
 
@@ -208,7 +207,7 @@ class Hydra:
         workers_done = 0
 
         while True:
-            data = self.queue_data.get(timeout=self.pqueue_timeout)
+            data = self.queue_data.get()
             if data is None:
                 workers_done += 1
                 # All workers are done, no need to wait anymore
