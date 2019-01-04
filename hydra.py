@@ -157,6 +157,11 @@ class Hydra:
             except PermissionError:
                 self.logger.warning('Permission denied for file ' + target_file)
                 continue
+            except OSError:
+                self.logger.error('ERROR READING FILE ' + target_file)
+            except:
+                self.logger.error('ERROR FOR FILE' + target_file)
+                self.logger.exception('This is the exception')
 
             self.no_files_processed[index] += 1
             target_hash = file_hash.hexdigest()
