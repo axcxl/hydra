@@ -40,6 +40,7 @@ class Hydra:
         self.session = session_maker()
 
         # Init statistics that come from worker processes
+        self.no_files_skipped = multiprocessing.Value('i', lock=False)
         self.no_files_indexed = multiprocessing.Value('i', lock=False)
         self.no_files_processed = multiprocessing.Array('i', self.no_workers, lock=False)
         self.no_files_logged = multiprocessing.Value('i', lock=False)
@@ -65,7 +66,8 @@ class Hydra:
 
         # Display statistics
         while True:
-            print('Indexed:', self.no_files_indexed.value, ' - PROCESSED: ', end='')
+            print('Indexed:', self.no_files_indexed.value, ' Skipped:', self.no_files_skipped.value, end='')
+            print(' - PROCESSED ', end='')
             for i in range(0, self.no_workers):
                 print(self.no_files_processed[i], end='; ')
             print('- Logged: ', self.no_files_logged.value, end='')
@@ -128,9 +130,14 @@ class Hydra:
 
                 self.logger.debug("FOUND " + f)
                 self.no_files_indexed.value += 1
-                self.queue_files.put(f)
+                # Skip files that are already in the DB
+                if self.session.query(Files).filter_by(path = f).first():
+                    self.no_files_skipped.value += 1
+                else:
+                    self.queue_files.put(f)
 
-        self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files')
+        self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files, skipped ' +
+                         str(self.no_files_skipped) + ' files')
 
         # Signal that the list of files is done. Do it for each worker
         for i in range(0, self.no_workers):
