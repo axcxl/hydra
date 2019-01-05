@@ -14,14 +14,14 @@ from sqlalchemy.orm import sessionmaker
 
 
 class Hydra:
-    def __init__(self, path):
+    def __init__(self, path, no_workers):
         self.target_path = path
 
         # Init logging
         self.init_logging(logging.INFO, 'hydra.log')
 
         # Init config stuff
-        self.no_workers = 4
+        self.no_workers = no_workers
         self.hash_func = hashlib.sha512
         self.hash_bsize = 2 * 1024 * 1024   # 8Mb?
         self.pqueue_maxsize = 2048          # files
@@ -245,10 +245,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multiprocess file indexer")
 
     parser.add_argument('target', help='Path to index')
+    parser.add_argument('--workers', help='Port to telnet to',
+            type=int, default=4)
 
     args = parser.parse_args()
 
     start = datetime.datetime.now()
-    h = Hydra(args.target)
+    h = Hydra(args.target, args.workers)
     stop = datetime.datetime.now()
     print("This took ", stop - start)
