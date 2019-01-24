@@ -11,6 +11,7 @@ from db import Base
 from db.files import Files
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import cProfile
 
 
 class Hydra:
@@ -28,7 +29,8 @@ class Hydra:
         self.print_timeout = 1              # second(s)
 
         # Init db stuff
-        self.db_engine = 'sqlite:///files.db'
+        index = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        self.db_engine = 'sqlite:///' + path + "files_" + index + ".db"
         self.db_commit_timeout = 5  # seconds
 
         # Connect to the database
