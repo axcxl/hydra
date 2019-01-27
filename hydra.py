@@ -8,10 +8,9 @@ import multiprocessing
 import logging
 import argparse
 from db import Base
-from db.files import Files
+from db.filesdb import FilesDb
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import cProfile
 
 
 class Hydra:
@@ -41,7 +40,6 @@ class Hydra:
         self.session = session_maker()
 
         # Init statistics that come from worker processes
-        self.no_files_skipped = multiprocessing.Value('i', lock=False)
         self.no_files_indexed = multiprocessing.Value('i', lock=False)
         self.no_files_processed = multiprocessing.Array('i', self.no_workers, lock=False)
         self.no_files_logged = multiprocessing.Value('i', lock=False)
@@ -67,7 +65,7 @@ class Hydra:
 
         # Display statistics
         while True:
-            print('Indexed:', self.no_files_indexed.value, ' Skipped:', self.no_files_skipped.value, end='')
+            print('Indexed:', self.no_files_indexed.value, end='')
             print(' - PROCESSED ', end='')
             for i in range(0, self.no_workers):
                 print(self.no_files_processed[i], end='; ')
@@ -131,14 +129,9 @@ class Hydra:
 
                 self.logger.debug("FOUND " + f)
                 self.no_files_indexed.value += 1
-                # Skip files that are already in the DB
-                if self.session.query(Files).filter_by(path = f).first():
-                    self.no_files_skipped.value += 1
-                else:
-                    self.queue_files.put(f)
+                self.queue_files.put(f)
 
-        self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files, skipped ' +
-                         str(self.no_files_skipped) + ' files')
+        self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files')
 
         # Signal that the list of files is done. Do it for each worker
         for i in range(0, self.no_workers):
@@ -222,10 +215,10 @@ class Hydra:
                 self.logger.info('COMMIT')
             else:
                 self.no_files_logged.value += 1
-                self.session.add(Files(path=data['path'],
-                                  hash=data['hash'],
-                                  size=data['size'],
-                                  date=data['date']))
+                self.session.add(FilesDb(path=data['path'],
+                                         hash=data['hash'],
+                                         size=data['size'],
+                                         date=data['date']))
 
         self.logger.info('FINAL COMMIT!')
         self.session.commit()
