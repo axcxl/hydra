@@ -221,7 +221,7 @@ class Hydra:
                 self.no_files_logged.value += 1
 
         self.logger.info('FINAL COMMIT!')
-        self.session.commit()
+        self.db_commit()
         self.logger.info('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
 
 
