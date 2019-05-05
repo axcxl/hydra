@@ -182,6 +182,7 @@ class Hydra:
     def db_insert(self, data):
         """
         Insert information in a database. Can and should be overridden.
+        NOTE: this is called once per processed file, after worker finished
         :param data: what to insert
         :return:
         """
@@ -190,6 +191,7 @@ class Hydra:
     def db_commit(self):
         """
         Commit database information. Can and should be overridden.
+        NOTE: this is called on command (by puttin "COMMIT" in the queue) or ar the end, once.
         :return:
         """
         print("COMMIT!")
