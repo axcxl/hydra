@@ -104,7 +104,7 @@ class Hydra:
         self.logger.info('Walker init for ' + self.target_path)
 
         for root, dirs, files in os.walk(self.target_path):
-            for file in files:
+            for file in sorted(files):
                 f = os.path.join(root, file)
 
                 self.logger.debug("FOUND " + f)
