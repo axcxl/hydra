@@ -2,42 +2,27 @@ import os
 import stat
 import datetime
 import time
-import hashlib
-import threading
 import multiprocessing
 import logging
 import argparse
-from db import Base
-from db.filesdb import FilesDb
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 
 class Hydra:
-    def __init__(self, path, no_workers):
+    """
+    Framework for processing lots of files.
+    """
+    def __init__(self, path, no_workers, log_name='hydra.log'):
+
         self.target_path = path
 
         # Init logging
-        self.init_logging(logging.INFO, 'hydra.log')
+        current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        self.init_logging(logging.INFO, log_name + "_" + current_time + ".log")
 
         # Init config stuff
         self.no_workers = no_workers
-        self.hash_func = hashlib.sha512
-        self.hash_bsize = 2 * 1024 * 1024   # 8Mb?
         self.pqueue_maxsize = 2048          # files
         self.print_timeout = 1              # second(s)
-
-        # Init db stuff
-        index = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-        self.db_engine = 'sqlite:///' + path + "files_" + index + ".db"
-        self.db_commit_timeout = 5  # seconds
-
-        # Connect to the database
-        # TODO: improve this, does not look that good
-        engine = create_engine(self.db_engine)
-        Base.metadata.create_all(engine)
-        session_maker = sessionmaker(bind=engine)
-        self.session = session_maker()
 
         # Init statistics that come from worker processes
         self.no_files_indexed = multiprocessing.Value('i', lock=False)
@@ -59,10 +44,6 @@ class Hydra:
         self.procs['librarian'] = multiprocessing.Process(target=self.librarian)
         self.procs['librarian'].start()
 
-        # Init threads
-        self.timer_db = threading.Timer(self.db_commit_timeout, self.timer_librarian_commit)
-        self.timer_db.start()
-
         # Display statistics
         while True:
             print('Indexed:', self.no_files_indexed.value, end='')
@@ -82,7 +63,6 @@ class Hydra:
 
             if done is True:
                 self.logger.info("Clean-up started!")
-                self.timer_db.cancel()
                 self.queue_data.close()
                 self.queue_files.close()
                 self.procs['walker'].join()
@@ -137,6 +117,15 @@ class Hydra:
         for i in range(0, self.no_workers):
             self.queue_files.put(None)
 
+    def work(self, input_file):
+        """
+        Work to do on the file. Can and should be overridden.
+        :param input_file: File received from queue.
+        :return: should return something
+        """
+        print("working on ", input_file)
+        return input_file
+
     def worker(self, index):
         """
         Works on files in the given queue. Puts results in another queue.
@@ -144,9 +133,8 @@ class Hydra:
         :param index: Used to identify individual workers.
         :return: Nothing. Puts results in another queue.
         """
-        self.logger.info('Worker ' + str(index) + ' started with ' + str(self.hash_func))
+        self.logger.info('Worker ' + str(index) + ' started')
 
-        file_hash = self.hash_func()
         while True:
             target_file = self.queue_files.get()
             if target_file is None:
@@ -161,34 +149,50 @@ class Hydra:
                 continue
 
             try:
-                with open(target_file, "rb") as f:
-                    for block in iter(lambda: f.read(self.hash_bsize), b""):
-                        file_hash.update(block)
+                result = self.work(target_file)
+
+                self.no_files_processed[index] += 1
+                self.logger.debug('Work on ' + target_file + ' resulted in ' + result)
+
+                data = {"path": target_file,
+                        "result": result,
+                        "size": fstat.st_size,
+                        "date": fstat.st_ctime
+                        }
+                self.queue_data.put(data)
             except PermissionError:
                 self.logger.warning('Permission denied for file ' + target_file)
                 continue
             except OSError:
                 self.logger.error('ERROR READING FILE ' + target_file)
+            except KeyboardInterrupt:
+                self.logger.info("STOPPED BY USER")
+                break
             except:
                 self.logger.error('ERROR FOR FILE' + target_file)
                 self.logger.exception('This is the exception')
-
-            self.no_files_processed[index] += 1
-            target_hash = file_hash.hexdigest()
-            self.logger.debug('Hashed ' + target_file + ' ' + target_hash)
-
-            data = {"path": target_file,
-                    "hash": target_hash,
-                    "size": fstat.st_size,
-                    "date": fstat.st_ctime
-                    }
-            self.queue_data.put(data)
 
         self.logger.info('Worker ' + str(index) + ' finished, processing ' +
                          str(self.no_files_processed[index]) + ' files')
 
         # Signal to the librarian that this worker is done
         self.queue_data.put(None)
+
+
+    def db_insert(self, data):
+        """
+        Insert information in a database. Can and should be overridden.
+        :param data: what to insert
+        :return:
+        """
+        print("INSERT", data)
+
+    def db_commit(self):
+        """
+        Commit database information. Can and should be overridden.
+        :return:
+        """
+        print("COMMIT!")
 
     def librarian(self):
         """
@@ -211,36 +215,21 @@ class Hydra:
                 continue
 
             if data == 'COMMIT':
-                self.session.commit()
-                self.logger.info('COMMIT')
+                self.db_commit()
             else:
+                self.db_insert(data)
                 self.no_files_logged.value += 1
-                self.session.add(FilesDb(path=data['path'],
-                                         hash=data['hash'],
-                                         size=data['size'],
-                                         date=data['date']))
 
         self.logger.info('FINAL COMMIT!')
         self.session.commit()
         self.logger.info('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
-
-    def timer_librarian_commit(self):
-        """
-        Used to trigger periodic commits. The timer recreates itself until it is canceled at the end.
-        :return:
-        """
-        self.queue_data.put('COMMIT')
-
-        # Restart timer
-        self.timer_db = threading.Timer(self.db_commit_timeout, self.timer_librarian_commit)
-        self.timer_db.start()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multiprocess file indexer")
 
     parser.add_argument('target', help='Path to index')
-    parser.add_argument('--workers', help='Port to telnet to',
+    parser.add_argument('--workers', help='Number of workers to spawn',
             type=int, default=4)
 
     args = parser.parse_args()

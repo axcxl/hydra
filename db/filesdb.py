@@ -6,12 +6,12 @@ class FilesDb(Base):
     __tablename__ = 'files'
     id = Column(Integer, primary_key=True)
     path = Column(String(100))
-    hash = Column(String(180))  # TODO: check this if changing hash function
+    hash = Column(String(180))  # TODO: check this if changing fileinfo function
     size = Column(Integer)
     date = Column(String(50))
 
     def __repr__(self):
-        return "<FilesDb(Id=%d, path=%s, hash=%s)>" % (self.id, self.path, self.hash)
+        return "<FilesDb(Id=%d, path=%s, fileinfo=%s)>" % (self.id, self.path, self.hash)
 
 """
 WIP
