@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import datetime
 import argparse
 import re
@@ -20,7 +22,7 @@ class DeleteDuplicates(Hydra):
         self.file_hashes = {}
 
         # Init hydra stuff - this starts all the workers
-        super().__init__(path, no_workers, 'index_files')
+        super().__init__(path, no_workers, 'delete_duplicates')
 
         duplicates = self.queue_to_main.get()
 
@@ -33,7 +35,9 @@ class DeleteDuplicates(Hydra):
             else:
                 print(elem)
 
-        #TODO: delete
+        input("> DELETE??!! ")
+        for elem in duplicates:
+            os.remove(elem)
 
     def work(self, input_file):
         return self.hash.computeHash(input_file)
