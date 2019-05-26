@@ -11,7 +11,7 @@ class Hydra:
     """
     Framework for processing lots of files.
     """
-    def __init__(self, path, no_workers, log_name='hydra.log'):
+    def __init__(self, path, no_workers, log_name='hydra'):
 
         self.target_path = path
 
