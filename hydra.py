@@ -83,18 +83,26 @@ class Hydra:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
+        self.log_file = file
+
         # create a file handler
         handler = logging.FileHandler(file)
         handler.setLevel(level)
 
+        chandler = logging.StreamHandler()
+        chandler.setLevel(logging.WARNING)
+
         # create a logging format
         formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
+        chandler.setFormatter(formatter)
 
         # add the handlers to the logger
         self.logger.addHandler(handler)
+        self.logger.addHandler(chandler)
 
         self.logger.info('Logging configured')
+
 
     def walk(self):
         """
@@ -152,7 +160,7 @@ class Hydra:
                 result = self.work(target_file)
 
                 self.no_files_processed[index] += 1
-                self.logger.debug('Work on ' + target_file + ' resulted in ' + result)
+                self.logger.debug('Work on ' + target_file + ' resulted in ' + str(result))
 
                 data = {"path": target_file,
                         "result": result,
