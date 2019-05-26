@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 # 2019-05-26: tested copy to alternate file name
-# TODO: test the NO EXIF and the similar stuff
+# 2019-05-26: tested the NO EXIF and the similar stuff
 
 import datetime
 import argparse
 import multiprocessing
 from collections import OrderedDict
 from operator import itemgetter
+import datetime
 import os
 import shutil
 import exifread
@@ -15,6 +16,9 @@ from hydra import Hydra
 
 class MoveToDateFolder(Hydra):
     def __init__(self, source, destination, no_workers, look_for_similar=False):
+        self.source = source
+        self.destination = destination
+
         # TODO: maybe there is a better way
         self.queue_to_main = multiprocessing.Queue()
 
@@ -34,13 +38,17 @@ class MoveToDateFolder(Hydra):
                 # The user has to make a choice
                 print("------- WARNING!")
                 while True:
-                    print("\nchoice: Press ENTER for 1, Press 2 for second")
+                    print("\tFor", elem, exifdates[elem])
+                    print("\nchoice: Press ENTER for 1, Press 2 for second, enter other date manually")
                     user = input(">")
                     if user == "" or user == "1":
                         exifdates[elem] = choice[0]
                         break
                     elif user == "2":
                         exifdates[elem] = choice[1]
+                        break
+                    else:
+                        exifdates[elem] = user
                         break
 
             print(elem, exifdates[elem])
@@ -67,7 +75,7 @@ class MoveToDateFolder(Hydra):
                 print("came up with", dest_file)
 
             print("Moving", fpfile, "to", dest_file)
-            shutil.copy(fpfile, dest_file)
+            shutil.move(fpfile, dest_file)
 
     def work(self, input_file):
         tags = exifread.process_file(open(input_file, "rb"), details=False)
@@ -79,11 +87,12 @@ class MoveToDateFolder(Hydra):
             self.last_exif_date = date
         except KeyError:
             ts_epoch = os.path.getmtime(input_file)
-            date_mod = datetime.fromtimestamp(ts_epoch).strftime('%Y%m%d')
+            date_mod = datetime.datetime.fromtimestamp(ts_epoch).strftime('%Y%m%d')
 
             # Look for similar files in the destination folder - useful for lots of duplicates
             if self.look_for_similar is True:
-                for rf, df, ff in os.walk(args.dest):
+                date_sim = "00000000"
+                for rf, df, ff in os.walk(self.destination):
                     if input_file in ff:
                         dest_file = os.path.join(rf, input_file)
                         date_sim = dest_file.split("/")[-2] #TODO: not portable
