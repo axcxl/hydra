@@ -2,7 +2,6 @@
 # 2019-05-26: tested copy to alternate file name
 # 2019-05-26: tested the NO EXIF and the similar stuff
 
-import datetime
 import argparse
 import multiprocessing
 from collections import OrderedDict
@@ -31,35 +30,42 @@ class MoveToDateFolder(Hydra):
         super().__init__(source, no_workers, 'move_to_date_folder')
 
         exifdates = self.queue_to_main.get()
+        if len(exifdates) == 0:
+            self.logger.info("NO FILES FOUND!")
+            exit(0)
 
         for elem in exifdates:
             if type(exifdates[elem]).__name__ == 'list':
                 choice = exifdates[elem]
                 # The user has to make a choice
-                print("------- WARNING!")
+                self.logger.info("------- WARNING!")
                 while True:
-                    print("\tFor", elem, exifdates[elem])
+                    self.logger.info("\tFor " + elem + str(exifdates[elem]))
                     print("\nchoice: Press ENTER for 1, Press 2 for second, enter other date manually")
                     user = input(">")
                     if user == "" or user == "1":
                         exifdates[elem] = choice[0]
+                        self.logger.info("User chose 1")
                         break
                     elif user == "2":
                         exifdates[elem] = choice[1]
+                        self.logger.info("User chose 2")
                         break
                     else:
                         exifdates[elem] = user
+                        self.logger.info("User input date " + user)
                         break
 
-            print(elem, exifdates[elem])
+            self.logger.info(elem + " " + str(exifdates[elem]))
 
-        print("Moving files to desination", destination)
+        self.logger.info("Moving files to desination " + destination)
         input("> MOVE?")
 
         for fpfile in exifdates:
             dest_folder = os.path.join(destination, exifdates[fpfile])
             try:
                 os.mkdir(dest_folder)
+                self.logger.debug("Created " + dest_folder)
             except FileExistsError:
                 pass
 
@@ -67,15 +73,15 @@ class MoveToDateFolder(Hydra):
             dest_file = os.path.join(dest_folder, file)
             if os.path.isfile(dest_file) is True:
                 index = 1
-                print(dest_file, "exists, trying other name")
+                self.logger.info(dest_file + " exists, trying other name")
                 while os.path.isfile(dest_file) is True:
                     split_name = os.path.splitext(file)
                     dest_file = os.path.join(dest_folder, split_name[0] + "_" + str(index) + split_name[1])
                     index += 1
-                print("came up with", dest_file)
+                self.logger.info("==> came up with " + dest_file)
 
-            print("Moving", fpfile, "to", dest_file)
-            shutil.move(fpfile, dest_file)
+            self.logger.info("Moving " + fpfile + " to " + dest_file)
+            shutil.copy(fpfile, dest_file)
 
     def work(self, input_file):
         tags = exifread.process_file(open(input_file, "rb"), details=False)

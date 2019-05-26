@@ -17,7 +17,7 @@ class Hydra:
 
         # Init logging
         current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-        self.init_logging(logging.INFO, log_name + "_" + current_time + ".log")
+        self.init_logging(logging.DEBUG, log_name + "_" + current_time + ".log")
 
         # Init config stuff
         self.no_workers = no_workers
@@ -59,16 +59,15 @@ class Hydra:
                     done = False
                 else:
                     self.procs[str(i)].join()
-                    self.logger.info('Joined with worker ' + str(i))
+                    self.logger.debug('Joined with worker ' + str(i))
 
             if done is True:
-                self.logger.info("Clean-up started!")
+                self.logger.debug("Clean-up started!")
                 self.queue_data.close()
                 self.queue_files.close()
                 self.procs['walker'].join()
                 self.procs['librarian'].join()
-                print('\n\nALL DONE!')
-                self.logger.info('ALL DONE!')
+                self.logger.debug('ALL DONE!')
                 break
 
             time.sleep(self.print_timeout)
@@ -81,7 +80,7 @@ class Hydra:
         :return: self.logger configured and ready for usage
         """
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
 
         self.log_file = file
 
@@ -90,7 +89,7 @@ class Hydra:
         handler.setLevel(level)
 
         chandler = logging.StreamHandler()
-        chandler.setLevel(logging.WARNING)
+        chandler.setLevel(logging.INFO) # This is fixed for display purposes
 
         # create a logging format
         formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
@@ -109,7 +108,7 @@ class Hydra:
         Look for files on in the given location. Keeps only regular files (an symlinks).
         :return: Nothing. Puts the full path of the files in a queue for processing.
         """
-        self.logger.info('Walker init for ' + self.target_path)
+        self.logger.debug('Walker init for ' + self.target_path)
 
         for root, dirs, files in os.walk(self.target_path):
             for file in sorted(files):
@@ -141,7 +140,7 @@ class Hydra:
         :param index: Used to identify individual workers.
         :return: Nothing. Puts results in another queue.
         """
-        self.logger.info('Worker ' + str(index) + ' started')
+        self.logger.debug('Worker ' + str(index) + ' started')
 
         while True:
             target_file = self.queue_files.get()
@@ -180,7 +179,7 @@ class Hydra:
                 self.logger.error('ERROR FOR FILE' + target_file)
                 self.logger.exception('This is the exception')
 
-        self.logger.info('Worker ' + str(index) + ' finished, processing ' +
+        self.logger.debug('Worker ' + str(index) + ' finished, processing ' +
                          str(self.no_files_processed[index]) + ' files')
 
         # Signal to the librarian that this worker is done
@@ -211,7 +210,7 @@ class Hydra:
         done by couting the None values in the queue.
         :return:
         """
-        self.logger.info('Librarian started!')
+        self.logger.debug('Librarian started!')
 
         workers_done = 0
 

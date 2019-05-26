@@ -25,18 +25,22 @@ class DeleteDuplicates(Hydra):
         super().__init__(path, no_workers, 'delete_duplicates')
 
         duplicates = self.queue_to_main.get()
+        if len(duplicates) == 0:
+            self.logger.info("NO DUPLICATES!")
+            exit(0)
 
         # Ask an opinion
-        print("FOUND", len(duplicates), "duplicate files")
+        self.logger.info("FOUND " + str(len(duplicates)) + " duplicate files")
         for elem in duplicates:
             # Just a useless check (maybe)
             if bool(re.search("_[0-9]{1,2}\.[A-Z]+", elem)) is False:
-                print(elem, "-------> WARNING!!!!")
+                self.logger.info(elem + "-------> WARNING!!!!")
             else:
-                print(elem)
+                self.logger.info(elem)
 
         input("> DELETE??!! ")
         for elem in duplicates:
+            self.logger.info("DELETED file " + elem)
             os.remove(elem)
 
     def work(self, input_file):
@@ -51,7 +55,7 @@ class DeleteDuplicates(Hydra):
         checksum = OrderedDict(sorted(self.file_hashes.items(), key=itemgetter(0)))
         duplicates = []
 
-        print("FOUND", no_files, "looking for duplicates")
+        self.logger.info("FOUND " + str(no_files) + " files. Looking for duplicates")
 
         # Then look for duplicates - quick and dirty
         for index in range(0, no_files - 1):
@@ -62,7 +66,7 @@ class DeleteDuplicates(Hydra):
             search = list(checksum.keys())[index + 1:]
             for elem in search:
                 if target_hash == checksum[elem] and elem not in duplicates:
-                    print(target, "and", elem, "are duplicate!")
+                    self.logger.info(target + " and " + elem + " are duplicate!")
                     duplicates.append(elem)
 
 
