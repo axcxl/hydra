@@ -13,10 +13,12 @@ import exifread
 
 from hydra import Hydra
 
-class MoveToDateFolder(Hydra):
-    def __init__(self, source, destination, no_workers, look_for_similar=False):
+class ToDateFolder(Hydra):
+    def __init__(self, source, destination, no_workers, copy=False, look_for_similar=False):
         self.source = source
         self.destination = destination
+
+        self.copy = copy  # If true, copy, else MOVE to date folder
 
         # TODO: maybe there is a better way
         self.queue_to_main = multiprocessing.Queue()
@@ -29,15 +31,19 @@ class MoveToDateFolder(Hydra):
         # Init hydra stuff - this starts all the workers
         super().__init__(source, no_workers, 'move_to_date_folder')
 
+        # Get results from librarian
         exifdates = self.queue_to_main.get()
+
+        # Exit if nothing to do
         if len(exifdates) == 0:
             self.logger.info("NO FILES FOUND!")
             exit(0)
 
+        # Look through the results...
         for elem in exifdates:
+            # ...and if we have a list, then the user must choose something
             if type(exifdates[elem]).__name__ == 'list':
                 choice = exifdates[elem]
-                # The user has to make a choice
                 self.logger.info("------- WARNING!")
                 while True:
                     self.logger.info("\tFor " + elem + str(exifdates[elem]))
@@ -52,25 +58,34 @@ class MoveToDateFolder(Hydra):
                         self.logger.info("User chose 2")
                         break
                     else:
-                        exifdates[elem] = user
+                        exifdates[elem] = user # just overwrite directly - not safe, but user!
                         self.logger.info("User input date " + user)
                         break
 
+            # Print elem, either detected or chosen by the user
             self.logger.info(elem + " " + str(exifdates[elem]))
 
-        self.logger.info("Moving files to desination " + destination)
-        input("> MOVE?")
+        self.logger.info("Chosen destination " + destination)
+        if self.copy is False:
+            input("> !! MOVE? !!")
+        else:
+            input("> COPY?")
 
+        # NOTE: exifdates contains full path filename (fpfile)
         for fpfile in exifdates:
             dest_folder = os.path.join(destination, exifdates[fpfile])
             try:
+                # Make sure destination exists
                 os.mkdir(dest_folder)
                 self.logger.debug("Created " + dest_folder)
             except FileExistsError:
+                # Skip if already created
                 pass
 
-            file = os.path.basename(fpfile)
-            dest_file = os.path.join(dest_folder, file)
+            file = os.path.basename(fpfile) # extract just the file name
+            dest_file = os.path.join(dest_folder, file) # and create the destination full path filename
+
+            # If we already have a file with the same name, append _x to not overwrite
             if os.path.isfile(dest_file) is True:
                 index = 1
                 self.logger.info(dest_file + " exists, trying other name")
@@ -80,8 +95,12 @@ class MoveToDateFolder(Hydra):
                     index += 1
                 self.logger.info("==> came up with " + dest_file)
 
-            self.logger.info("Moving " + fpfile + " to " + dest_file)
-            shutil.copy(fpfile, dest_file)
+            if self.copy is False:
+                self.logger.info("Moving " + fpfile + " to " + dest_file)
+                shutil.move(fpfile, dest_file)
+            else:
+                self.logger.info("Copying " + fpfile + " to " + dest_file)
+                shutil.copy(fpfile, dest_file)
 
     def work(self, input_file):
         tags = exifread.process_file(open(input_file, "rb"), details=False)
@@ -122,10 +141,10 @@ class MoveToDateFolder(Hydra):
         return date
 
     def db_insert(self, data):
+        # This is called in same process as commit, so we can create the list to pass on to main
         self.exif_dates[data['path']] = data['result']
 
     def db_commit(self):
-        no_files = len(self.exif_dates)
         # Sort files, since multiple workers can add them in a different order
         exifdates = OrderedDict(sorted(self.exif_dates.items(), key=itemgetter(0)))
 
@@ -144,6 +163,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start = datetime.datetime.now()
-    h = MoveToDateFolder(args.source, args.destination, args.workers, args.similar)
+    h = ToDateFolder(args.source, args.destination, args.workers, False, args.similar)
     stop = datetime.datetime.now()
     print("This took ", stop - start)
