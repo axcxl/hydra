@@ -12,6 +12,7 @@ from hydra import Hydra
 from db import Base
 from db.filesdb import FilesDb
 from fileinfo import HashFile
+from fileinfo import ExifInfo
 
 
 class IndexFiles(Hydra):
@@ -53,17 +54,34 @@ class IndexFiles(Hydra):
         self.timer_db.start()
 
     def work(self, input_file):
-        return self.hash.computeHash(input_file)
+        exif = ExifInfo(input_file)
+        infodict = exif.getinfo()
+
+        infodict["hash"] = self.hash.computeHash(input_file)
+
+        return infodict
+
+
 
     def db_insert(self, data):
-        self.session.add(FilesDb(path=data['path'],
-                                 hash=data['result'],
-                                 size=data['size'],
-                                 date=data['date']))
+        self.session.add(FilesDb(
+            path = data['path'],
+            size = data['size'],
+            date = data['date'],
+
+            hash    = data['result']['hash'],
+            camera  = data['result']['camera'],
+            lens    = data['result']['lens'],
+            exp_time    = data['result']['exp_time'],
+            exp_fnum    = data['result']['exp_fnum'],
+            exp_iso     = data['result']['exp_iso'],
+            focal_length = data['result']['focal_length'],
+            flash   = data['result']['flash']
+        ))
 
     def db_commit(self):
         self.session.commit()
-        self.logger.info('COMMIT')
+        self.logger.debug('COMMIT')
 
 
 if __name__ == "__main__":

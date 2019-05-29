@@ -10,22 +10,15 @@ class FilesDb(Base):
     size = Column(Integer)
     date = Column(String(50))
 
+    #TODO: check length of these
+    camera = Column(String(100))
+    lens = Column(String(100))
+    exp_time = Column(String(100))
+    exp_fnum = Column(String(100))
+    exp_iso  = Column(String(100))
+    focal_length = Column(String(100))
+    flash = Column(String(100))
+
+
     def __repr__(self):
         return "<FilesDb(Id=%d, path=%s, fileinfo=%s)>" % (self.id, self.path, self.hash)
-
-"""
-WIP
-class Photo(FilesDb):
-    __tablename__ = 'photo'
-    id = Column(Integer, primary_key=True)
-    type = Column(String(10))
-    camera = Column(String(50))
-    orig_date = Column(String(50))
-    shutter = Column(String(10))
-    fnumber = Column(String(10))
-    isorating = Column(String(10))
-    flash = Column(String(10))
-    focal = Column(String(10))
-"""
-
-
