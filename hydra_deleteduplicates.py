@@ -34,7 +34,7 @@ class DeleteDuplicates(Hydra):
         self.logger.info("FOUND " + str(len(duplicates)) + " duplicate files")
         for elem in duplicates:
             # Just a useless check (maybe)
-            if bool(re.search("_[0-9]{1,2}\.[A-Z]+", elem)) is False:
+            if bool(re.search("_[0-9]{1,2}\.[a-zA-Z]+", elem)) is False:
                 self.logger.info(elem + "-------> WARNING!!!!")
                 warnings += 1
             else:
