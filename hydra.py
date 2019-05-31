@@ -14,6 +14,7 @@ class Hydra:
     def __init__(self, path, no_workers, log_name='hydra'):
 
         self.target_path = path
+        self.main_data = []
 
         # Init logging
         current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M")
@@ -32,6 +33,8 @@ class Hydra:
         # Init queues
         self.queue_files = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
         self.queue_data = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
+        # TODO: maybe better way?
+        self.queue_to_main = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
 
         self.logger.info("Started working on " + path)
 
@@ -55,6 +58,9 @@ class Hydra:
             print('- Logged: ', self.no_files_logged.value, end='')
             print('', end='\r')
 
+            while self.queue_to_main.empty() is False:
+                self.main_data.append(self.queue_to_main.get(block=False))
+
             done = True
             for i in range(0, self.no_workers):
                 if self.procs[str(i)].is_alive() is True:
@@ -68,11 +74,27 @@ class Hydra:
                 self.queue_data.close()
                 self.queue_files.close()
                 self.procs['walker'].join()
-                self.procs['librarian'].join()
-                self.logger.debug('ALL DONE!')
                 break
 
             time.sleep(self.print_timeout)
+
+        # NOTE: librarian might be still processing data (example: heavy processing in
+        # db_commit), so we wait for it separately
+        while True:
+            # Get all remanaining data
+            while self.queue_to_main.empty() is False:
+                print(self.queue_to_main.qsize())
+                self.main_data.append(self.queue_to_main.get(block=False))
+
+            # See it it is done, non-blocking
+            if self.procs['librarian'].is_alive() is False:
+                self.procs['librarian'].join()
+                break
+
+            time.sleep(1.0)
+
+        self.queue_to_main.close()
+        self.logger.debug('ALL DONE!')
 
     def init_logging(self, level, file):
         """
@@ -229,7 +251,7 @@ class Hydra:
                 self.db_insert(data)
                 self.no_files_logged.value += 1
 
-        self.logger.info('FINAL COMMIT!')
+        self.logger.debug('FINAL COMMIT!')
         self.db_commit()
         self.logger.debug('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
 

@@ -20,9 +20,6 @@ class ToDateFolder(Hydra):
 
         self.copy = copy  # If true, copy, else MOVE to date folder
 
-        # TODO: maybe there is a better way
-        self.queue_to_main = multiprocessing.Queue()
-
         # Init hash function
         self.exif_dates = {}
         self.look_for_similar = look_for_similar
@@ -32,7 +29,9 @@ class ToDateFolder(Hydra):
         super().__init__(source, no_workers, 'move_to_date_folder')
 
         # Get results from librarian
-        exifdates = self.queue_to_main.get()
+        exifdates = OrderedDict()
+        for elem in self.queue_to_main:
+            exifdates[elem[0]] = elem[1]
 
         # Exit if nothing to do
         if len(exifdates) == 0:
@@ -149,7 +148,8 @@ class ToDateFolder(Hydra):
         exifdates = OrderedDict(sorted(self.exif_dates.items(), key=itemgetter(0)))
 
         # Need to pass the list to main to get approval from the user
-        self.queue_to_main.put(exifdates)
+        for elem in exifdates:
+            self.queue_to_main.put([elem, exifdates[elem]])
 
 
 if __name__ == "__main__":

@@ -14,9 +14,6 @@ from fileinfo import HashFile
 
 class DeleteDuplicates(Hydra):
     def __init__(self, path, no_workers, batch_mode = False):
-        # TODO: maybe there is a better way
-        self.queue_to_main = multiprocessing.Queue()
-
         # Init hash function
         self.hash = HashFile()
         self.file_hashes = {}
@@ -24,7 +21,8 @@ class DeleteDuplicates(Hydra):
         # Init hydra stuff - this starts all the workers
         super().__init__(path, no_workers, 'delete_duplicates')
 
-        duplicates = self.queue_to_main.get()
+        duplicates = self.main_data
+
         if len(duplicates) == 0:
             self.logger.info("NO DUPLICATES!")
             exit(0)
@@ -82,10 +80,8 @@ class DeleteDuplicates(Hydra):
                     self.logger.info(target + " and " + elem + " are duplicate!")
                     duplicates.append(elem)
 
-
-        # Need to pass the list to main to get approval from the user
-        self.queue_to_main.put(duplicates)
-
+                    # Pass elements to main process, to get use approval
+                    self.queue_to_main.put(elem)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Delete duplicate files in a path")
