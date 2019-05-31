@@ -13,7 +13,7 @@ from fileinfo import HashFile
 
 
 class DeleteDuplicates(Hydra):
-    def __init__(self, path, no_workers):
+    def __init__(self, path, no_workers, batch_mode = False):
         # TODO: maybe there is a better way
         self.queue_to_main = multiprocessing.Queue()
 
@@ -30,15 +30,28 @@ class DeleteDuplicates(Hydra):
             exit(0)
 
         # Ask an opinion
+        warnings = 0
         self.logger.info("FOUND " + str(len(duplicates)) + " duplicate files")
         for elem in duplicates:
             # Just a useless check (maybe)
             if bool(re.search("_[0-9]{1,2}\.[A-Z]+", elem)) is False:
                 self.logger.info(elem + "-------> WARNING!!!!")
+                warnings += 1
             else:
                 self.logger.info(elem)
 
-        input("> DELETE??!! ")
+        if warnings > 0:
+            self.logger.info("Got " + str(warnings) + " warnings!")
+
+        if batch_mode is False:
+            input("> DELETE??!! ")
+        else:
+            if warnings > 0:
+                self.logger.info("BATCH MODE - detected warnings, skipping folder " + path)
+                exit(1)
+            else:
+                self.logger.info("BATCH MODE - no warnings, continueing")
+
         for elem in duplicates:
             self.logger.info("DELETED file " + elem)
             os.remove(elem)
@@ -78,12 +91,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Delete duplicate files in a path")
 
     parser.add_argument('target', help='Path to index')
-    parser.add_argument('--workers', help='Number of workers to spawn',
-                        type=int, default=4)
+    parser.add_argument('--workers', help='Number of workers to spawn', type=int, default=4)
+    parser.add_argument('--batch', help='Batch mode. Stops on warnings automatically', action='store_true')
 
     args = parser.parse_args()
 
     start = datetime.datetime.now()
-    h = DeleteDuplicates(args.target, args.workers)
+    h = DeleteDuplicates(args.target, args.workers, args.batch)
     stop = datetime.datetime.now()
     print("This took ", stop - start)
