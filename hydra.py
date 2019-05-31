@@ -82,10 +82,8 @@ class Hydra:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
-        self.log_file = file
-
         # create a file handler
-        handler = logging.FileHandler(file)
+        handler = logging.FileHandler(os.path.join(self.target_path, file)) # put file in the target folder
         handler.setLevel(level)
 
         chandler = logging.StreamHandler()
