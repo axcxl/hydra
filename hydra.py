@@ -33,6 +33,8 @@ class Hydra:
         self.queue_files = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
         self.queue_data = multiprocessing.Queue(maxsize=self.pqueue_maxsize)
 
+        self.logger.info("Started working on " + path)
+
         # Init processes
         self.procs = {'walker': multiprocessing.Process(target=self.walk)}
         self.procs['walker'].start()
@@ -98,7 +100,7 @@ class Hydra:
         self.logger.addHandler(handler)
         self.logger.addHandler(chandler)
 
-        self.logger.info('Logging configured')
+        self.logger.debug('Logging configured')
 
 
     def walk(self):
@@ -116,7 +118,7 @@ class Hydra:
                 self.no_files_indexed.value += 1
                 self.queue_files.put(f)
 
-        self.logger.info('Processed ' + str(self.no_files_indexed.value) + ' files')
+        self.logger.debug('Processed ' + str(self.no_files_indexed.value) + ' files')
 
         # Signal that the list of files is done. Do it for each worker
         for i in range(0, self.no_workers):
@@ -229,7 +231,7 @@ class Hydra:
 
         self.logger.info('FINAL COMMIT!')
         self.db_commit()
-        self.logger.info('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
+        self.logger.debug('Librarian finished processing ' + str(self.no_files_logged.value) + '!')
 
 
 if __name__ == "__main__":
