@@ -13,7 +13,9 @@ from fileinfo import HashFile
 
 
 class DeleteDuplicates(Hydra):
-    def __init__(self, path, no_workers, batch_mode = False):
+    def __init__(self, path, no_workers, batch_mode = False, reverse = False):
+        self.reverse_order = reverse
+
         # Init hash function
         self.hash = HashFile()
         self.file_hashes = {}
@@ -25,28 +27,32 @@ class DeleteDuplicates(Hydra):
 
         if len(duplicates) == 0:
             self.logger.info("NO DUPLICATES!")
-            exit(0)
+            return
 
         # Ask an opinion
         warnings = 0
         self.logger.info("FOUND " + str(len(duplicates)) + " duplicate files")
         for elem in duplicates:
             # Just a useless check (maybe)
-            if bool(re.search("_[0-9]{1,2}\.[a-zA-Z]+", elem)) is False:
+            # NOTE: also check "name (x).xxx" patterns
+            if bool(re.search("_[0-9]{1,2}\.[a-zA-Z]+", elem)) is True or \
+                bool(re.search("\ \([0-9]+\)\.[a-zA-Z]+", elem)) is True:
+                self.logger.info(elem)
+            else:
                 self.logger.info(elem + "-------> WARNING!!!!")
                 warnings += 1
-            else:
-                self.logger.info(elem)
 
         if warnings > 0:
             self.logger.info("Got " + str(warnings) + " warnings!")
 
         if batch_mode is False:
-            input("> DELETE??!! ")
+            resp = input("> DELETE??!! ")
+            if resp == "exit":
+                return
         else:
             if warnings > 0:
                 self.logger.info("BATCH MODE - detected warnings, skipping folder " + path)
-                exit(1)
+                return
             else:
                 self.logger.info("BATCH MODE - no warnings, continueing")
 
@@ -63,7 +69,7 @@ class DeleteDuplicates(Hydra):
     def db_commit(self):
         no_files = len(self.file_hashes)
         # Sort files, since multiple workers can add them in a different order
-        checksum = OrderedDict(sorted(self.file_hashes.items(), key=itemgetter(0)))
+        checksum = OrderedDict(sorted(self.file_hashes.items(), key=itemgetter(0), reverse = self.reverse_order))
         duplicates = []
 
         self.logger.info("FOUND " + str(no_files) + " files. Looking for duplicates")
@@ -89,10 +95,24 @@ if __name__ == "__main__":
     parser.add_argument('target', help='Path to index')
     parser.add_argument('--workers', help='Number of workers to spawn', type=int, default=4)
     parser.add_argument('--batch', help='Batch mode. Stops on warnings automatically', action='store_true')
+    parser.add_argument('--reverse', help='Reverse ordering. Useful for " (1).xxx" stuff ', action='store_true')
+    parser.add_argument('--recursive', help='Run for all files in folder', action='store_true')
 
     args = parser.parse_args()
 
+    targets = []
+    if args.recursive is True:
+        for root, dirs, files in os.walk(args.target, topdown=False):
+            for dir in dirs:
+                path = os.path.join(root, dir)
+                targets.append(path)
+    else:
+        targets = [args.target]
+
     start = datetime.datetime.now()
-    h = DeleteDuplicates(args.target, args.workers, args.batch)
+    for target in targets:
+        print(target)
+        h = DeleteDuplicates(target, args.workers, args.batch, args.reverse)
+        del h
     stop = datetime.datetime.now()
     print("This took ", stop - start)
