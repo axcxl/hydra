@@ -30,7 +30,7 @@ class ToDateFolder(Hydra):
 
         # Get results from librarian
         exifdates = OrderedDict()
-        for elem in self.queue_to_main:
+        for elem in self.main_data:
             exifdates[elem[0]] = elem[1]
 
         # Exit if nothing to do
