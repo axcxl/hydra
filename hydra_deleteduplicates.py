@@ -110,7 +110,7 @@ if __name__ == "__main__":
         targets = [args.target]
 
     start = datetime.datetime.now()
-    for target in targets:
+    for target in sorted(targets):
         print(target)
         h = DeleteDuplicates(target, args.workers, args.batch, args.reverse)
         del h
