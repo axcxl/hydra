@@ -106,21 +106,23 @@ class Hydra:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
-        # create a file handler
-        handler = logging.FileHandler(os.path.join(self.target_path, file)) # put file in the target folder
-        handler.setLevel(level)
+        # Fix multiple logging messages
+        if not len(self.logger.handlers):
+            # create a file handler
+            handler = logging.FileHandler(os.path.join(self.target_path, file)) # put file in the target folder
+            handler.setLevel(level)
 
-        chandler = logging.StreamHandler()
-        chandler.setLevel(logging.INFO) # This is fixed for display purposes
+            chandler = logging.StreamHandler()
+            chandler.setLevel(logging.INFO) # This is fixed for display purposes
 
-        # create a logging format
-        formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        chandler.setFormatter(formatter)
+            # create a logging format
+            formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            chandler.setFormatter(formatter)
 
-        # add the handlers to the logger
-        self.logger.addHandler(handler)
-        self.logger.addHandler(chandler)
+            # add the handlers to the logger
+            self.logger.addHandler(handler)
+            self.logger.addHandler(chandler)
 
         self.logger.debug('Logging configured')
 
