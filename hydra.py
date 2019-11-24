@@ -5,6 +5,7 @@ import time
 import multiprocessing
 import logging
 import argparse
+import sys
 
 
 class Hydra:
@@ -23,7 +24,7 @@ class Hydra:
         # Init config stuff
         self.no_workers = no_workers
         self.pqueue_maxsize = 2048          # files
-        self.print_timeout = 1              # second(s)
+        self.print_timeout = 5              # second(s)
 
         # Init statistics that come from worker processes
         self.no_files_indexed = multiprocessing.Value('i', lock=False)
@@ -77,6 +78,7 @@ class Hydra:
                 break
 
             time.sleep(self.print_timeout)
+            sys.stdout.flush()
 
         # NOTE: librarian might be still processing data (example: heavy processing in
         # db_commit), so we wait for it separately
