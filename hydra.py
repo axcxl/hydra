@@ -82,7 +82,7 @@ class Hydra:
         # NOTE: librarian might be still processing data (example: heavy processing in
         # db_commit), so we wait for it separately
         while True:
-            # Get all remanaining data
+            # Get all remaining data
             while self.queue_to_main.empty() is False:
                 print(self.queue_to_main.qsize())
                 self.main_data.append(self.queue_to_main.get(block=False))
@@ -239,7 +239,7 @@ class Hydra:
         """
         Logs results to a database. The results are taken from a queue.
         The processes terminates after processing all the data and after seeing that all the workers are done. This is
-        done by couting the None values in the queue.
+        done by counting the None values in the queue.
         :return:
         """
         self.logger.debug('Librarian started!')
