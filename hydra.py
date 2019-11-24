@@ -159,6 +159,14 @@ class Hydra:
         print("working on ", input_file)
         return input_file
 
+    def init(self, index):
+        """
+        Function ran when initializing workers
+        :param index: Index of the worker for which it is called
+        :return:
+        """
+        return
+
     def worker(self, index):
         """
         Works on files in the given queue. Puts results in another queue.
@@ -167,6 +175,10 @@ class Hydra:
         :return: Nothing. Puts results in another queue.
         """
         self.logger.debug('Worker ' + str(index) + ' started')
+
+        self.init(index)
+
+        self.logger.debug('Worker ' + str(index) + ' init done!')
 
         while True:
             target_file = self.queue_files.get()
