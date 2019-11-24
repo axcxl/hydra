@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import datetime
+import stat
 import argparse
 import threading
 import os.path
@@ -54,20 +55,27 @@ class IndexFiles(Hydra):
         self.timer_db.start()
 
     def work(self, input_file):
+        fstat = os.stat(input_file)
+        if stat.S_ISREG(fstat.st_mode) is False:
+            return None
+
         exif = ExifInfo(input_file)
         infodict = exif.getinfo()
 
+        # Add hash to db
         infodict["hash"] = self.hash.computeHash(input_file)
 
+        # Add file size and file time to db
+        infodict["size"] = fstat.st_size
+        infodict["date"] = fstat.st_ctime
+
         return infodict
-
-
 
     def db_insert(self, data):
         self.session.add(FilesDb(
             path = data['path'],
-            size = data['size'],
-            date = data['date'],
+            size = data['result']['size'],
+            date = data['result']['date'],
 
             hash    = data['result']['hash'],
             camera  = data['result']['camera'],
