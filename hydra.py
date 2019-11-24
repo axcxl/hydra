@@ -144,7 +144,14 @@ class Hydra:
                 self.queue_elems.put(f)
 
         self.logger.debug('Processed ' + str(self.no_elems_indexed.value) + ' files')
+        self.worker_signal_done()
 
+    def worker_signal_done(self):
+        """
+        Signal to the workers that there is no more data to process and that they should close
+        :return:
+        """
+        self.logger.debug('No more work, closing workers')
         # Signal that the list of files is done. Do it for each worker
         for i in range(0, self.no_workers):
             self.queue_elems.put(None)
