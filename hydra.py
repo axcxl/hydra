@@ -156,9 +156,10 @@ class Hydra:
         for i in range(0, self.no_workers):
             self.queue_elems.put(None)
 
-    def work(self, input_file):
+    def work(self, index, input_file):
         """
         Work to do on the file. Can and should be overridden.
+        :param index: Index of the worker calling this function
         :param input_file: File received from queue.
         :return: should return something
         """
@@ -192,7 +193,7 @@ class Hydra:
                 break
 
             try:
-                result = self.work(target_file)
+                result = self.work(index, target_file)
                 if result is None:
                     # Worker signaled that something is wrong
                     self.logger.warning('Problem in elem ' + target_file)

@@ -54,7 +54,7 @@ class IndexFiles(Hydra):
         self.timer_db = threading.Timer(self.db_commit_timeout, self.timer_librarian_commit)
         self.timer_db.start()
 
-    def work(self, input_file):
+    def work(self, index, input_file):
         fstat = os.stat(input_file)
         if stat.S_ISREG(fstat.st_mode) is False:
             return None

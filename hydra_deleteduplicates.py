@@ -60,7 +60,7 @@ class DeleteDuplicates(Hydra):
             self.logger.info("DELETED file " + elem)
             os.remove(elem)
 
-    def work(self, input_file):
+    def work(self, index, input_file):
         return self.hash.computeHash(input_file)
 
     def db_insert(self, data):

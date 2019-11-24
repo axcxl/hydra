@@ -51,7 +51,7 @@ class RenameToTime(Hydra):
 
                 #shutil.move(fpfile, dest_file)
 
-    def work(self, input_file):
+    def work(self, index, input_file):
         tags = exifread.process_file(open(input_file, "rb"), details=False)
         ext = os.path.basename(input_file).split(".")[1]
 

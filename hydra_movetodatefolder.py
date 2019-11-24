@@ -101,7 +101,7 @@ class ToDateFolder(Hydra):
                 self.logger.info("Copying " + fpfile + " to " + dest_file)
                 shutil.copy(fpfile, dest_file)
 
-    def work(self, input_file):
+    def work(self, index, input_file):
         tags = exifread.process_file(open(input_file, "rb"), details=False)
 
         try:
