@@ -35,11 +35,7 @@ class CompareDb(Hydra):
                 break
 
             self.no_elems_indexed.value += 1
-            if self.no_elems_indexed.value >= 4000:
-                break
-
-            # Put entire element in queue?
-            self.queue_elems.put(elem)
+            self.queue_elems.put(elem) # Put entire element - easier to print stuff
 
         self.logger.debug('Processed ' + str(self.no_elems_indexed.value) + ' files')
         self.worker_signal_done()
