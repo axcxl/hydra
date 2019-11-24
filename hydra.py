@@ -156,15 +156,15 @@ class Hydra:
         for i in range(0, self.no_workers):
             self.queue_elems.put(None)
 
-    def work(self, index, input_file):
+    def work(self, index, input_data):
         """
-        Work to do on the file. Can and should be overridden.
+        Work to do on the data. Can and should be overridden.
         :param index: Index of the worker calling this function
-        :param input_file: File received from queue.
+        :param input_data: File received from queue.
         :return: should return something
         """
-        print("working on ", input_file)
-        return input_file
+        print("working on ", input_data)
+        return input_data
 
     def init(self, index):
         """
@@ -188,35 +188,35 @@ class Hydra:
         self.logger.debug('Worker ' + str(index) + ' init done!')
 
         while True:
-            target_file = self.queue_elems.get()
-            if target_file is None:
+            target_data = self.queue_elems.get()
+            s_targetdata = str(target_data) #Used for logging stuff, making sure it is a string
+            if target_data is None:
                 break
 
             try:
-                result = self.work(index, target_file)
+                result = self.work(index, target_data)
                 if result is None:
                     # Worker signaled that something is wrong
-                    self.logger.warning('Problem in elem ' + target_file)
+                    self.logger.warning('Problem in elem ' + s_targetdata)
                     continue
 
                 self.no_elems_processed[index] += 1
-                self.logger.debug('Work on ' + target_file + ' resulted in ' + str(result))
+                self.logger.debug('Work on ' + s_targetdata + ' resulted in ' + str(result))
 
-                data = {"path": target_file,
-                        "result": result
-                        }
+                data = {"path": target_data,
+                        "result": result}
                 self.queue_data.put(data)
             except PermissionError:
-                self.logger.warning('Permission denied for file ' + target_file)
+                self.logger.warning('Permission denied for data ' + s_targetdata)
             except OSError:
-                self.logger.error('ERROR READING FILE ' + target_file)
+                self.logger.error('ERROR READING FILE ' + s_targetdata)
             except FileNotFoundError:
-                self.logger.warning('File ' + target_file + ' not found! Maybe symlink?')
+                self.logger.warning('File ' + s_targetdata + ' not found! Maybe symlink?')
             except KeyboardInterrupt:
                 self.logger.info("STOPPED BY USER")
                 break
             except:
-                self.logger.error('ERROR FOR FILE' + target_file)
+                self.logger.error('ERROR FOR FILE' + s_targetdata)
                 self.logger.exception('This is the exception')
 
         self.logger.debug('Worker ' + str(index) + ' finished, processing ' +
@@ -229,7 +229,7 @@ class Hydra:
     def db_insert(self, data):
         """
         Insert information in a database. Can and should be overridden.
-        NOTE: this is called once per processed file, after worker finished
+        NOTE: this is called once per processed data, after worker finished
         :param data: what to insert
         :return:
         """
