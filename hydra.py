@@ -11,14 +11,14 @@ class Hydra:
     """
     Framework for processing lots of files or other stuff.
     """
-    def __init__(self, path, no_workers, log_name='hydra'):
+    def __init__(self, path, no_workers, log_name='hydra', log_level = logging.WARNING):
 
         self.target_path = path
         self.main_data = []
 
         # Init logging
         current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-        self.init_logging(logging.DEBUG, log_name + "_" + current_time + ".log")
+        self.init_logging(log_level, log_name + "_" + current_time + ".log")
 
         # Init config stuff
         self.no_workers = no_workers
