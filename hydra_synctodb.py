@@ -68,6 +68,10 @@ class SyncToDb(Hydra):
             if os.path.basename(found[0]) == file_name:
                 break
 
+        # Sanity check
+        if os.path.basename(found[0]) != file_name:
+            return False
+
         self.logger.debug("For "+ input_file+ "(" + file_hash + ") found " + str(found))
 
         # No file found in targetdb -> ignore
@@ -82,10 +86,16 @@ class SyncToDb(Hydra):
         #if file_time != found[2]:
         #    self.logger.warning("DATE MISMATCH FOR " + input_file + "! Skipping! (GOT:" + str(file_time) + " FILE:" + str(found[2]) + ")")
         #    return None
+
+        # Split the patch at the given part
         initial_path = pathsplitall(found[0])
         split = initial_path.index(self.strippath)
         target_path = initial_path[split+1:]
         target_path = os.path.join(*target_path)
+
+        # Ignore files already in place
+        if target_path == input_file:
+            return False
 
         return target_path
 
@@ -96,9 +106,10 @@ class SyncToDb(Hydra):
             return
 
         target_folder = os.path.dirname(data['result'])
+        target_folder = os.path.join(self.target_path, target_folder)
         try:
             if self.dry_run is False:
-                os.mkdir(target_folder)
+                os.makedirs(target_folder, exist_ok=True)
             self.logger.warning("Created folder " + target_folder)
         except FileExistsError:
             #Skip if already created
