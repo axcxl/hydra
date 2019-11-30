@@ -194,6 +194,7 @@ class Hydra:
                 break
 
             try:
+                self.logger.debug("Worker " + str(index) + " working on " + s_targetdata)
                 result = self.work(index, target_data)
                 if result is None:
                     # Worker signaled that something is wrong
