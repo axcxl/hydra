@@ -116,7 +116,7 @@ class SyncToDb(Hydra):
             pass
 
         if self.dry_run is False:
-            shutil.copy(data['path'], data['result'])
+            shutil.move(data['path'], data['result'])
         self.logger.warning("Moving " + data['path'] + " to " + data['result'])
         self.files_moved.value += 1
 
