@@ -68,14 +68,15 @@ class SyncToDb(Hydra):
             if os.path.basename(found[0]) == file_name:
                 break
 
-        # Sanity check
-        if os.path.basename(found[0]) != file_name:
-            return False
-
         self.logger.debug("For "+ input_file+ "(" + file_hash + ") found " + str(found))
 
         # No file found in targetdb -> ignore
         if found is None:
+            return False
+
+        # Sanity check
+        if os.path.basename(found[0]) != file_name:
+            self.logger.debug("FILENAME MISMATCH! for " + input_file)
             return False
 
         # Some sanity checks
@@ -94,7 +95,7 @@ class SyncToDb(Hydra):
         target_path = os.path.join(*target_path)
 
         # Ignore files already in place
-        if target_path == input_file:
+        if os.path.normpath(target_path) == os.path.normpath(input_file):
             return False
 
         return target_path
@@ -106,7 +107,6 @@ class SyncToDb(Hydra):
             return
 
         target_folder = os.path.dirname(data['result'])
-        target_folder = os.path.join(self.target_path, target_folder)
         try:
             if self.dry_run is False:
                 os.makedirs(target_folder, exist_ok=True)
