@@ -49,16 +49,13 @@ class IndexFiles(Hydra):
         :return:
         """
         self.queue_data.put('COMMIT')
+        self.logger.debug("TRIGGERING COMMIT!")
 
         # Restart timer
         self.timer_db = threading.Timer(self.db_commit_timeout, self.timer_librarian_commit)
         self.timer_db.start()
 
     def work(self, index, input_file):
-        fstat = os.stat(input_file)
-        if stat.S_ISREG(fstat.st_mode) is False:
-            return None
-
         exif = ExifInfo(input_file)
         infodict = exif.getinfo()
 
@@ -66,6 +63,7 @@ class IndexFiles(Hydra):
         infodict["hash"] = self.hash.computeHash(input_file)
 
         # Add file size and file time to db
+        fstat = os.stat(input_file)
         infodict["size"] = fstat.st_size
         infodict["date"] = fstat.st_ctime
 

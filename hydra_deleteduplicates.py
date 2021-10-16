@@ -31,33 +31,33 @@ class DeleteDuplicates(Hydra):
 
         # Ask an opinion
         warnings = 0
-        self.logger.info("FOUND " + str(len(duplicates)) + " duplicate files")
+        self.logger.warning("FOUND " + str(len(duplicates)) + " duplicate files")
         for elem in duplicates:
             # Just a useless check (maybe)
             # NOTE: also check "name (x).xxx" patterns
             if bool(re.search("_[0-9]{1,2}\.[a-zA-Z]+", elem)) is True or \
-                bool(re.search("\ \([0-9]+\)\.[a-zA-Z]+", elem)) is True:
-                self.logger.info(elem)
+               bool(re.search("\ \([0-9]+\)\.[a-zA-Z]+", elem)) is True:
+                self.logger.warning("DELETE " + elem + " ?")
             else:
-                self.logger.info(elem + "-------> WARNING!!!!")
+                self.logger.warning("DELETE " + elem + " ?-------> WARNING!!!!")
                 warnings += 1
 
         if warnings > 0:
-            self.logger.info("Got " + str(warnings) + " warnings!")
+            self.logger.warning("Got " + str(warnings) + " warnings!")
 
         if batch_mode is False:
-            resp = input("> DELETE??!! ")
-            if resp == "exit":
+            resp = self.get_user_approval("DELETE??!!")
+            if resp is False:
                 return
         else:
             if warnings > 0:
-                self.logger.info("BATCH MODE - detected warnings, skipping folder " + path)
+                self.logger.warning("BATCH MODE - detected warnings, skipping folder " + path)
                 return
             else:
-                self.logger.info("BATCH MODE - no warnings, continueing")
+                self.logger.warning("BATCH MODE - no warnings, continuing")
 
         for elem in duplicates:
-            self.logger.info("DELETED file " + elem)
+            self.logger.warning("DELETED file " + elem)
             os.remove(elem)
 
     def work(self, index, input_file):

@@ -35,40 +35,43 @@ class ToDateFolder(Hydra):
 
         # Exit if nothing to do
         if len(exifdates) == 0:
-            self.logger.info("NO FILES FOUND!")
-            exit(0)
+            self.logger.warning("NO FILES FOUND!")
+            return
 
         # Look through the results...
         for elem in exifdates:
             # ...and if we have a list, then the user must choose something
             if type(exifdates[elem]).__name__ == 'list':
                 choice = exifdates[elem]
-                self.logger.info("------- WARNING!")
+                self.logger.warning("------- WARNING!")
                 while True:
-                    self.logger.info("\tFor " + elem + str(exifdates[elem]))
+                    self.logger.warning("\tFor " + elem + str(exifdates[elem]))
                     print("\nchoice: Press ENTER for 1, Press 2 for second, enter other date manually")
                     user = input(">")
                     if user == "" or user == "1":
                         exifdates[elem] = choice[0]
-                        self.logger.info("User chose 1")
+                        self.logger.warning("User chose 1")
                         break
                     elif user == "2":
                         exifdates[elem] = choice[1]
-                        self.logger.info("User chose 2")
+                        self.logger.warning("User chose 2")
                         break
                     else:
                         exifdates[elem] = user # just overwrite directly - not safe, but user!
-                        self.logger.info("User input date " + user)
+                        self.logger.warning("User input date " + user)
                         break
 
             # Print elem, either detected or chosen by the user
             self.logger.info(elem + " " + str(exifdates[elem]))
 
-        self.logger.info("Chosen destination " + destination)
+        self.logger.warning("Chosen destination " + destination)
         if self.copy is False:
-            input("> !! MOVE? !!")
+            resp = self.get_user_approval("!! MOVE? !!")
         else:
-            input("> COPY?")
+            resp = self.get_user_approval("COPY?")
+
+        if resp is False:
+            return
 
         # NOTE: exifdates contains full path filename (fpfile)
         for fpfile in exifdates:

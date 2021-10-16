@@ -58,18 +58,17 @@ class CompareDb(Hydra):
         filename = input_data[1]
         hash = input_data[2]
         self.mem_dbs[index].execute('SELECT path FROM files WHERE hash=?', (hash,))
+
         found = self.mem_dbs[index].fetchone()
         self.logger.debug("For "+ filename + "(" + hash + ") found " + str(found))
-
         if found is not None:
             return True
         else:
             return False
 
     def db_insert(self, data):
-        file = data['path'][1]
-
         if data['result'] is not True:
+            file = data['path'][1]
             self.logger.warning(file + " not found in " + self.targetdb)
 
 if __name__ == "__main__":

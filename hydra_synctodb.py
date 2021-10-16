@@ -47,14 +47,11 @@ class SyncToDb(Hydra):
         self.logger.debug("Done creating mem db for worker " + str(index))
 
     def work(self, index, input_file):
-        fstat = os.stat(input_file)
-        if stat.S_ISREG(fstat.st_mode) is False:
-            return None
-
         # Get file info
         file_hash = self.hash.computeHash(input_file)
+        fstat = os.stat(input_file)
         file_size = fstat.st_size
-        file_time = fstat.st_ctime
+        #TIME IS TOO DIFFERENT
 
         file_name = os.path.basename(input_file)
 
@@ -83,10 +80,6 @@ class SyncToDb(Hydra):
         if file_size != found[1]:
             self.logger.warning("SIZE MISMATCH FOR " + input_file + "! Skipping")
             return None
-        # TOO MANY FAILURES
-        #if file_time != found[2]:
-        #    self.logger.warning("DATE MISMATCH FOR " + input_file + "! Skipping! (GOT:" + str(file_time) + " FILE:" + str(found[2]) + ")")
-        #    return None
 
         # Split the patch at the given part
         initial_path = pathsplitall(found[0])
@@ -98,6 +91,7 @@ class SyncToDb(Hydra):
         if os.path.normpath(target_path) == os.path.normpath(input_file):
             return False
 
+        self.logger.warning("Will move " + os.path.normpath(target_path) + " to " +  os.path.normpath(input_file))
         return target_path
 
     def db_insert(self, data):

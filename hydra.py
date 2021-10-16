@@ -1,4 +1,5 @@
 import os
+import stat
 import datetime
 import time
 import multiprocessing
@@ -11,7 +12,7 @@ class Hydra:
     """
     Framework for processing lots of files or other stuff.
     """
-    def __init__(self, path, no_workers, log_name='hydra', log_level = logging.WARNING):
+    def __init__(self, path, no_workers, log_name='hydra', log_level = logging.INFO):
 
         self.target_path = path
         self.main_data = []
@@ -27,6 +28,7 @@ class Hydra:
 
         # Init statistics that come from worker processes
         self.no_elems_indexed = multiprocessing.Value('i', lock=False)
+        self.no_elems_skipped = multiprocessing.Value('i', lock=False)
         self.no_elems_processed = multiprocessing.Array('i', self.no_workers, lock=False)
         self.no_elems_logged = multiprocessing.Value('i', lock=False)
 
@@ -52,6 +54,7 @@ class Hydra:
         # Display statistics
         while True:
             print('Indexed:', self.no_elems_indexed.value, end='')
+            print('Skipped:', self.no_elems_skipped.value, end='')
             print(' - PROCESSED ', end='')
             for i in range(0, self.no_workers):
                 print(self.no_elems_processed[i], end='; ')
@@ -127,6 +130,21 @@ class Hydra:
 
         self.logger.debug('Logging configured')
 
+    def get_user_approval(self, message):
+        """
+        Make the user take a decision, log and return
+        :param message: What to ask the user
+        :return: True if the user approved, False otherwise
+        """
+        while True:
+            resp = input(">> " + message + " (y/n)")
+            if resp == "n" or resp == "N":
+                self.logger.warning("User canceled!")
+                return False
+            elif resp == "y" or resp == "Y":
+                self.logger.warning("USER APPROVED!")
+                return True
+
     def walk(self):
         """
         Look for files on in the given location. Keeps only regular files (an symlinks).
@@ -138,12 +156,23 @@ class Hydra:
         for root, dirs, files in os.walk(self.target_path):
             for file in sorted(files):
                 f = os.path.join(root, file)
+                fstat = os.stat(f)
+                if stat.S_ISREG(fstat.st_mode) is False:
+                    self.logger.info("Skipped" + f + ", not a regular file!")
+                    self.no_elems_skipped.value += 1
+                    continue
+                if fstat.st_size == 0:
+                    self.logger.info("Skipped " + f + ", size 0")
+                    self.no_elems_skipped.value += 1
+                    continue
+
+                # Skip files of size 0, cannot do anything with them
 
                 self.logger.debug("FOUND " + f)
                 self.no_elems_indexed.value += 1
                 self.queue_elems.put(f)
 
-        self.logger.debug('Processed ' + str(self.no_elems_indexed.value) + ' files')
+        self.logger.info('Processed ' + str(self.no_elems_indexed.value) + ' files')
         self.worker_signal_done()
 
     def worker_signal_done(self):
@@ -182,9 +211,7 @@ class Hydra:
         :return: Nothing. Puts results in another queue.
         """
         self.logger.debug('Worker ' + str(index) + ' started')
-
         self.init(index)
-
         self.logger.debug('Worker ' + str(index) + ' init done!')
 
         while True:
@@ -197,12 +224,11 @@ class Hydra:
                 self.logger.debug("Worker " + str(index) + " working on " + s_targetdata)
                 result = self.work(index, target_data)
                 if result is None:
-                    # Worker signaled that something is wrong
-                    self.logger.warning('Problem in elem ' + s_targetdata)
+                    #NOTE: worker should log the info why something is wrong!
                     continue
 
                 self.no_elems_processed[index] += 1
-                self.logger.debug('Work on ' + s_targetdata + ' resulted in ' + str(result))
+                self.logger.debug("Worker " + str(index) + " working on " + s_targetdata + " came up with" + str(result))
 
                 data = {"path": target_data,
                         "result": result}
@@ -220,12 +246,11 @@ class Hydra:
                 self.logger.error('ERROR FOR FILE' + s_targetdata)
                 self.logger.exception('This is the exception')
 
-        self.logger.debug('Worker ' + str(index) + ' finished, processing ' +
+        self.logger.info('Worker ' + str(index) + ' finished, processing ' +
                           str(self.no_elems_processed[index]) + ' elems')
 
         # Signal to the librarian that this worker is done
         self.queue_data.put(None)
-
 
     def db_insert(self, data):
         """
@@ -270,9 +295,9 @@ class Hydra:
                 self.db_insert(data)
                 self.no_elems_logged.value += 1
 
-        self.logger.debug('FINAL COMMIT!')
+        self.logger.info('FINAL COMMIT!')
         self.db_commit()
-        self.logger.debug('Librarian finished processing ' + str(self.no_elems_logged.value) + '!')
+        self.logger.info('Librarian finished processing ' + str(self.no_elems_logged.value) + '!')
 
 
 if __name__ == "__main__":
